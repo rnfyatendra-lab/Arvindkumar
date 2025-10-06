@@ -24,13 +24,9 @@ if (form) {
       });
       const result = await res.json();
 
-      if (result.success) {
-        alert(result.message || "✅ Mail Sent Successfully");
-      } else {
-        alert(result.message || "❌ Mail Not Sent");
-      }
+      alert(result.message); // ✅ सिर्फ़ message दिखेगा
     } catch (err) {
-      alert("❌ Mail Not Sent: " + err.message);
+      alert("❌ Mail Not Sent");
     }
 
     sendBtn.disabled = false;
