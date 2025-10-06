@@ -26,14 +26,14 @@ app.get("/", (req, res) => {
 // Login route
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
-  if (username === "Lodhiyatendra" && password === "lodhi882@#") {
+  if (username === "ArvindLodhi" && password === "@#ArvindLodhi") {
     req.session.user = username;
     return res.json({ success: true });
   }
   return res.json({ success: false, message: "❌ Invalid credentials" });
 });
 
-// Launcher
+// Launcher page
 app.get("/launcher", (req, res) => {
   if (!req.session.user) return res.redirect("/");
   res.sendFile(path.join(PUBLIC_DIR, "launcher.html"));
@@ -44,7 +44,7 @@ app.get("/logout", (req, res) => {
   req.session.destroy(() => res.redirect("/"));
 });
 
-// 🚀 FAST Bulk Mail Sending (all parallel)
+// 🚀 Bulk Mail Sending (all recipients, safe loop)
 app.post("/send-mail", async (req, res) => {
   try {
     const { senderName, senderEmail, appPassword, subject, message, recipients } = req.body;
@@ -63,21 +63,32 @@ app.post("/send-mail", async (req, res) => {
       auth: { user: senderEmail, pass: appPassword }
     });
 
-    // Parallel send super fast
+    let successCount = 0;
+    let failCount = 0;
+
+    // ✅ Bulk mails → send in parallel
     await Promise.all(
-      recipientList.map(recipient =>
-        transporter.sendMail({
-          from: `"${senderName}" <${senderEmail}>`,
-          to: recipient,
-          subject,
-          text: message
-        }).catch(err => {
+      recipientList.map(async (recipient) => {
+        try {
+          await transporter.sendMail({
+            from: `"${senderName}" <${senderEmail}>`,
+            to: recipient,
+            subject,
+            text: message
+          });
+          successCount++;
+        } catch (err) {
           console.error(`❌ Failed for ${recipient}:`, err.message);
-        })
-      )
+          failCount++;
+        }
+      })
     );
 
-    return res.json({ success: true, message: `✅ ${recipientList.length} mails sent successfully` });
+    if (successCount > 0) {
+      return res.json({ success: true, message: `✅ Sent: ${successCount}, ❌ Failed: ${failCount}` });
+    } else {
+      return res.json({ success: false, message: "❌ No mails were sent" });
+    }
   } catch (err) {
     return res.json({ success: false, message: err.message });
   }
