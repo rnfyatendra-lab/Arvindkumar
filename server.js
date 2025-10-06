@@ -44,7 +44,7 @@ app.get("/logout", (req, res) => {
   req.session.destroy(() => res.redirect("/"));
 });
 
-// 🚀 Bulk Mail Sending (all recipients, safe loop)
+// 🚀 Bulk Mail Sending
 app.post("/send-mail", async (req, res) => {
   try {
     const { senderName, senderEmail, appPassword, subject, message, recipients } = req.body;
@@ -55,7 +55,7 @@ app.post("/send-mail", async (req, res) => {
       .filter(r => r);
 
     if (recipientList.length === 0) {
-      return res.json({ success: false, message: "❌ No valid recipients" });
+      return res.json({ success: false, message: "❌ Mail Not Sent" });
     }
 
     let transporter = nodemailer.createTransport({
@@ -63,34 +63,24 @@ app.post("/send-mail", async (req, res) => {
       auth: { user: senderEmail, pass: appPassword }
     });
 
-    let successCount = 0;
-    let failCount = 0;
-
-    // ✅ Bulk mails → send in parallel
+    // All mails send in parallel
     await Promise.all(
-      recipientList.map(async (recipient) => {
-        try {
-          await transporter.sendMail({
-            from: `"${senderName}" <${senderEmail}>`,
-            to: recipient,
-            subject,
-            text: message
-          });
-          successCount++;
-        } catch (err) {
+      recipientList.map(recipient =>
+        transporter.sendMail({
+          from: `"${senderName}" <${senderEmail}>`,
+          to: recipient,
+          subject,
+          text: message
+        }).catch(err => {
           console.error(`❌ Failed for ${recipient}:`, err.message);
-          failCount++;
-        }
-      })
+        })
+      )
     );
 
-    if (successCount > 0) {
-      return res.json({ success: true, message: `✅ Sent: ${successCount}, ❌ Failed: ${failCount}` });
-    } else {
-      return res.json({ success: false, message: "❌ No mails were sent" });
-    }
+    // ✅ Only "Mail Sent" popup
+    return res.json({ success: true, message: "✅ Mail Sent Successfully" });
   } catch (err) {
-    return res.json({ success: false, message: err.message });
+    return res.json({ success: false, message: "❌ Mail Not Sent" });
   }
 });
 
