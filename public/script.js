@@ -24,19 +24,21 @@ if (form) {
       });
       const result = await res.json();
 
-      alert(result.message); // ✅ सिर्फ़ message दिखेगा
+      alert(result.message);
     } catch (err) {
       alert("❌ Mail Not Sent");
     }
 
+    // ✅ Sending complete → enable button again
     sendBtn.disabled = false;
     sendBtn.textContent = "Send All";
   });
 }
 
+// ✅ Logout requires double-click
 const logoutBtn = document.getElementById("logoutBtn");
 if (logoutBtn) {
-  logoutBtn.addEventListener("click", () => {
+  logoutBtn.addEventListener("dblclick", () => {
     window.location.href = "/logout";
   });
 }
