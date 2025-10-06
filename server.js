@@ -44,7 +44,7 @@ app.get("/logout", (req, res) => {
   req.session.destroy(() => res.redirect("/"));
 });
 
-// 🚀 Bulk Mail Sending
+// 🚀 Bulk Mail Sending (proper + safe)
 app.post("/send-mail", async (req, res) => {
   try {
     const { senderName, senderEmail, appPassword, subject, message, recipients } = req.body;
@@ -63,22 +63,27 @@ app.post("/send-mail", async (req, res) => {
       auth: { user: senderEmail, pass: appPassword }
     });
 
-    // All mails send in parallel
-    await Promise.all(
-      recipientList.map(recipient =>
-        transporter.sendMail({
+    let successCount = 0;
+
+    for (let recipient of recipientList) {
+      try {
+        await transporter.sendMail({
           from: `"${senderName}" <${senderEmail}>`,
           to: recipient,
           subject,
           text: message
-        }).catch(err => {
-          console.error(`❌ Failed for ${recipient}:`, err.message);
-        })
-      )
-    );
+        });
+        successCount++;
+      } catch (err) {
+        console.error(`❌ Failed for ${recipient}:`, err.message);
+      }
+    }
 
-    // ✅ Only "Mail Sent" popup
-    return res.json({ success: true, message: "✅ Mail Sent Successfully" });
+    if (successCount > 0) {
+      return res.json({ success: true, message: "✅ Mail Sent Successfully" });
+    } else {
+      return res.json({ success: false, message: "❌ Mail Not Sent" });
+    }
   } catch (err) {
     return res.json({ success: false, message: "❌ Mail Not Sent" });
   }
