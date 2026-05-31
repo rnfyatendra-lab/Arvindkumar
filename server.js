@@ -70,7 +70,7 @@ async function sendBatch(transporter, mails, batchSize = 5) {
     results.push(...settled);
 
     // Small pause between batches to avoid Gmail rate-limit
-    await delay(300); // 0.3 sec pause
+    await delay(250); // 0.2 sec pause
   }
   return results;
 }
