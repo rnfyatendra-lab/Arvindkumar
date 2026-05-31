@@ -70,7 +70,7 @@ async function sendBatch(transporter, mails, batchSize = 5) {
     results.push(...settled);
 
     // Small pause between batches to avoid Gmail rate-limit
-    await delay(200); // 0.2 sec pause
+    await delay(300); // 0.3 sec pause
   }
   return results;
 }
@@ -109,7 +109,7 @@ app.post('/send', requireAuth, async (req, res) => {
     }));
 
     // Send mails in batches (parallel within batch)
-    await sendBatch(transporter, mails, 5); // 5 mails parallel
+    await sendBatch(transporter, mails, 3); // 3 mails parallel
 
     return res.json({ success: true, message: `✅ Mail sent to ${recipientList.length}` });
 
