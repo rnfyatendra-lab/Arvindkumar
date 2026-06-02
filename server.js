@@ -1,125 +1,124 @@
-// server.js
-require('dotenv').config();
-const express = require('express');
-const session = require('express-session');
-const bodyParser = require('body-parser');
-const nodemailer = require('nodemailer');
-const path = require('path');
+import "dotenv/config";
+import express from "express";
+import session from "express-session";
+import nodemailer from "nodemailer";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 
-// 🔑 Hardcoded login
-const HARD_USERNAME = "1";
-const HARD_PASSWORD = "1";
+app.use(express.json({ limit: "100kb" }));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
 
-// Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "change-me",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax"
+    }
+  })
+);
 
-app.use(session({
-  secret: 'bulk-mailer-secret',
-  resave: false,
-  saveUninitialized: true
-}));
+const LOGIN_USERNAME = process.env.LOGIN_USERNAME || "admin";
+const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD || "admin";
 
-// 🔒 Auth middleware
 function requireAuth(req, res, next) {
   if (req.session.user) return next();
-  return res.redirect('/');
+  return res.status(401).json({ success: false, message: "Unauthorized" });
 }
 
-// Routes
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
-app.post('/login', (req, res) => {
+app.post("/login", (req, res) => {
   const { username, password } = req.body;
-  if (username === HARD_USERNAME && password === HARD_PASSWORD) {
+
+  if (
+    username === LOGIN_USERNAME &&
+    password === LOGIN_PASSWORD
+  ) {
     req.session.user = username;
     return res.json({ success: true });
   }
-  return res.json({ success: false, message: "❌ Invalid credentials" });
-});
 
-app.get('/launcher', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'launcher.html'));
-});
-
-app.post('/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.clearCookie('connect.sid');
-    return res.json({ success: true });
+  return res.json({
+    success: false,
+    message: "Invalid credentials"
   });
 });
 
-// Helper function for delay
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+app.post("/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.json({ success: true });
+  });
+});
 
-// Helper function for batch sending
-async function sendBatch(transporter, mails, batchSize = 5) {
-  const results = [];
-  for (let i = 0; i < mails.length; i += batchSize) {
-    const batch = mails.slice(i, i + batchSize);
-    const promises = batch.map(mail => transporter.sendMail(mail));
-    const settled = await Promise.allSettled(promises);
-    results.push(...settled);
-
-    // Small pause between batches to avoid Gmail rate-limit
-    await delay(250); // 0.2 sec pause
-  }
-  return results;
-}
-
-// ✅ Bulk Mail Sender with fast batch sending
-app.post('/send', requireAuth, async (req, res) => {
+app.post("/send", requireAuth, async (req, res) => {
   try {
-    const { senderName, email, password, recipients, subject, message } = req.body;
-    if (!email || !password || !recipients) {
-      return res.json({ success: false, message: "Email, password and recipients required" });
+    const {
+      senderName,
+      email,
+      password,
+      recipient,
+      subject,
+      message
+    } = req.body;
+
+    if (
+      !email ||
+      !password ||
+      !recipient ||
+      !subject ||
+      !message
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields"
+      });
     }
 
-    const recipientList = recipients
-      .split(/[\n,]+/)
-      .map(r => r.trim())
-      .filter(r => r);
-
-    if (recipientList.length === 0) {
-      return res.json({ success: false, message: "No valid recipients" });
-    }
-
-    // ✅ Single transporter
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: { user: email, pass: password }
+      service: "gmail",
+      auth: {
+        user: email,
+        pass: password
+      }
     });
 
-    // Prepare mails
-    const mails = recipientList.map(r => ({
-      from: `"${senderName || 'Anonymous'}" <${email}>`,
-      to: r,
-      subject: subject || "No Subject",
-      text: message || ""
-    }));
+    await transporter.verify();
 
-    // Send mails in batches (parallel within batch)
-    await sendBatch(transporter, mails, 3); // 3 mails parallel
+    await transporter.sendMail({
+      from: `"${senderName || email}" <${email}>`,
+      to: recipient,
+      subject,
+      text: message,
+      replyTo: email
+    });
 
-    return res.json({ success: true, message: `✅ Mail sent to ${recipientList.length}` });
+    return res.json({
+      success: true,
+      message: "Email sent successfully"
+    });
 
   } catch (err) {
-    console.error("Send error:", err);
-    return res.json({ success: false, message: err.message });
+    console.error(err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send email"
+    });
   }
 });
 
-// Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
