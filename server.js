@@ -19,8 +19,8 @@ const PORT = process.env.PORT || 8080;
 //   LOGIN_USER=apna_username
 //   LOGIN_PASS=apna_strong_password
 //   SESSION_SECRET=koi_lamba_random_string
-const ADMIN_USER = process.env.LOGIN_USER     || 'admin';
-const ADMIN_PASS = process.env.LOGIN_PASS     || 'Admin@1234';
+const ADMIN_USER = process.env.LOGIN_USER     || '1';
+const ADMIN_PASS = process.env.LOGIN_PASS     || '1';
 const SES_SECRET = process.env.SESSION_SECRET || 'ch@nge-this-now!';
 
 // ─── Email validator ──────────────────────────────────────────────────────────
